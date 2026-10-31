@@ -3,10 +3,29 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, patch
 
 from reelay.core.config import normalize_config
 from reelay.core.contracts import ParsedResource, PipelineContext, RawMessage
 from reelay.plugins.organizer import build_plan
+
+
+class TestOrganizerResume(unittest.IsolatedAsyncioTestCase):
+    async def test_completed_organization_is_reverified_without_cleaning_deleted_stage(self):
+        from reelay.plugins.organizer import Organizer
+        ctx = PipelineContext(raw=RawMessage(source='test', msg_id='1', text='test'))
+        ctx.meta['organize'] = {'applied': True, 'plan': [{'src_id': '123'}]}
+        organizer = Organizer()
+        organizer.prepare = AsyncMock()
+        organizer._apply_sync = Mock()
+        organizer._cleanup = Mock(side_effect=AssertionError('Stage already deleted'))
+        service = SimpleNamespace(storage=lambda name: SimpleNamespace(library=lambda: object()))
+        with patch('reelay.plugins.organizer.runtime.services', return_value=service):
+            self.assertTrue(await organizer.run(ctx))
+        organizer._apply_sync.assert_called_once()
+        organizer._cleanup.assert_not_called()
+        self.assertTrue(ctx.meta['organize']['applied'])
 
 
 class TestLibraryRouter(unittest.TestCase):

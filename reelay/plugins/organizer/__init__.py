@@ -363,7 +363,8 @@ class Organizer(_MediaLibrary):
             plan = ctx.ns("organize")["plan"]
             drive = runtime.services().storage(ctx.ns("storage").get("provider", "p115")).library()
             await run_blocking(self._apply_sync, ctx, ctx.parsed, plan, drive)
-            self._cleanup(ctx, drive)
+            if not ctx.ns('organize').get('applied'):
+                await run_blocking(self._cleanup, ctx, drive)
             ctx.ns("organize")["applied"] = True
             for key in ("error", "pending_conflict", "resolve"):
                 ctx.ns("organize").pop(key, None)
