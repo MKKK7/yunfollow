@@ -16,7 +16,6 @@ from ..core.registry import register
 from .catalog import Catalog
 from .http import api
 from .preflight import Preflight
-from .discovery import discover, describe
 
 log = logging.getLogger('reelay.fnos.search')
 
@@ -82,7 +81,7 @@ class FnosSources:
                 for query in search_queries(sub):
                     update('正在自动盘搜：' + query, query=query)
                     result = await api(source['url'] + '/api/search',
-                        {'kw': query, 'res': 'merge', 'src': 'all'}, timeout=45)
+                        {'kw': query, 'res': 'merge', 'src': 'all', 'cloud_types': ['115']}, timeout=45)
                     if result.get('code') not in (None, 0, 200):
                         raise RuntimeError('PanSou rejected search')
                     hits = (result.get('data') or {}).get('merged_by_type', {}).get('115', []) or []
@@ -97,16 +96,7 @@ class FnosSources:
                         if code in items and items[code]['share'].get('password') != new['share'].get('password'):
                             new['conflict'] = True
                         items[code] = new
-                    merged = (result.get('data') or {}).get('merged_by_type', {})
-                    for cloud in ('aliyun', 'quark'):
-                        for share in sorted(merged.get(cloud, []), key=lambda s: str(s.get('datetime') or ''), reverse=True)[:40]:
-                            title = str(share.get('title') or share.get('note') or '')[:2000]
-                            if any(word in title for word in ('大电影', '电影版', '剧场版')):
-                                continue
-                            url = str(share.get('url') or '')
-                            items[cloud + url] = {'title': title, 'datetime': str(share.get('datetime') or ''), 'share': {'cloud': cloud, 'url': url,
-                                'password': share.get('password') or ''}, 'source': '@fnos_pansou',
-                                'version': hashlib.sha256(json.dumps(share, sort_keys=True).encode()).hexdigest()}
+
         else:
             channel = source['url'].rsplit('/', 1)[-1]
             for query in [s['title'] for s in subs[:5]]:
@@ -182,20 +172,7 @@ class FnosSources:
                         continue
                     source_checks += 1
                     store.state_set('fnos_source_cursor', source['id'], (index + 1) % max(1, len(values)))
-                    if share.get('cloud'):
-                        progress['checked'] += 1
-                        update('正在读取其他网盘的实际文件列表：' + candidate['title'][:80])
-                        target = {'title': sub['title'], 'tmdbid': sub['tmdbid'], 'season': sub['season']}
-                        found = await discover(store, candidate, target)
-                        if found['state'] == 'verified_files':
-                            progress['external_verified'] = progress.get('external_verified', 0) + 1
-                            update(describe(found))
-                            notice = found['id'] + ':' + str(max(found['episodes']))
-                            if not store.state_get('fnos_discovery_notices', notice):
-                                store.stage_notice('discovery-' + notice, describe(found), ['fnos_bot'])
-                                store.state_set('fnos_discovery_notices', notice, True)
-                        else:
-                            progress['deferred'] += 1
+                    if not share.get('shareCode') or share.get('cloud') not in (None, '115'):
                         continue
                     link = 'https://115cdn.com/s/' + share['shareCode']
                     if share.get('password'):
@@ -226,8 +203,6 @@ class FnosSources:
                    f"暂无法核验{progress['deferred']}，新增任务{progress['emitted']}。")
         if not progress['emitted']:
             message += '本轮没有新增合格任务；未发起转存。'
-        if progress.get('external_verified'):
-            message += f"已找到{progress['external_verified']}个其他网盘的实际剧集文件来源；/results 查看链接，未下载中转。"
         update(message, state='waiting', finished_at=time.time())
         fingerprint = hashlib.sha256(json.dumps(subs, sort_keys=True).encode()).hexdigest()[:16]
         if store.state_get(self.name, 'reported_subscriptions') != fingerprint:
