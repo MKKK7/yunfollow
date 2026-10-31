@@ -104,6 +104,11 @@ def router(service):
     async def audit():
         return list(service.store.state_get('fnos_preflight', 'audit', {}).values())
 
+    @route.get('/discoveries', dependencies=[Depends(proposal)])
+    async def discoveries():
+        from .discovery import results
+        return results(service.store)
+
     @route.get('/integrations', dependencies=[Depends(proposal)])
     async def integrations():
         from .integrations import latest

@@ -63,6 +63,11 @@ class Bot:
         if not text:
             return
         catalog = Catalog(self.service.store)
+        if text == '/results':
+            from .discovery import results, describe
+            items = results(self.service.store)
+            await self.send('\n\n'.join(describe(item) for item in items[:6]) or '暂无近期核验通过的其他网盘来源；/search 重新搜索。')
+            return
         if text == '/integrations':
             from .integrations import check
             result = await check(self.service)
