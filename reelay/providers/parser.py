@@ -153,12 +153,14 @@ class LLMParser(ai.UsesAI):
     @staticmethod
     def messages(ctx: PipelineContext, examples: list[dict], hint: dict | None = None) -> list[dict]:
         system = _SYSTEM_PROMPT + (_EXAMPLES_PROMPT if examples else "") + (_HINT_PROMPT if hint else "")
+        if ctx.raw.extra.get('fnos_subscription'):
+            system += '\nrequested_subscription只是用户搜索目标，不是候选资源的属性。按text中的真实证据分类；动画电影仍是movie，不得为了匹配订阅将电影改成tv或anime。'
         out = [{"role": "system", "content": system}]
         for item in examples:
             out += [{"role": "user", "content": json.dumps({"text": item["text"], "urls": []}, ensure_ascii=False)},
                     {"role": "assistant", "content": json.dumps(item["expected"], ensure_ascii=False)}]
         out.append({"role": "user", "content": json.dumps(
-            {"text": ctx.raw.text, "urls": ctx.raw.urls, **({"rule_hint": hint} if hint else {})}, ensure_ascii=False)})
+            {"text": ctx.raw.text, "urls": ctx.raw.urls, **({"rule_hint": hint} if hint else {}), **({'requested_subscription': ctx.raw.extra['fnos_subscription']} if ctx.raw.extra.get('fnos_subscription') else {}), **({'verified_file_listing': ctx.raw.extra['fnos_file_evidence']} if ctx.raw.extra.get('fnos_file_evidence') else {})}, ensure_ascii=False)})
         return out
 
     async def _complete(self, ctx: PipelineContext, examples: list[dict], hint: dict) -> dict:

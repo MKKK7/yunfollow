@@ -16,6 +16,13 @@ data/
 
 # ---- 部署参数（模板见 .env.example） ----
 .env
+*.env
+.env.*
+!.env.example
+*.private.*
+*.b64
+verify_fnos_live.py
+verify_native.py
 
 # ---- IDE / OS ----
 .idea/

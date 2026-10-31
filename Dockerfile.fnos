@@ -1,0 +1,17 @@
+FROM node:24-bookworm-slim AS node
+FROM ghcr.io/derrors/reelay@sha256:205e92aa5922d0212d1ec51532f3ff105d864b47fde4ccc3d024fca375961884
+USER root
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+WORKDIR /app
+COPY reelay/ /app/reelay/
+COPY fnos-category.yaml /app/reelay/plugins/organizer/category.yaml
+COPY fnos-adapters/ /app/fnos-adapters/
+COPY LICENSE /app/LICENSE
+COPY FNOS.md /app/FNOS.md
+COPY init_fnos.py /app/init_fnos.py
+LABEL org.opencontainers.image.source="https://github.com/MKKK7/reelay-fnos" org.opencontainers.image.licenses="MIT"
+RUN chmod -R a+rX /app/reelay /app/fnos-adapters /app/FNOS.md /app/LICENSE
+ENV PYTHONPATH=/app FNOS_BOT_API=1 REELAY_WEB_HOST=0.0.0.0 REELAY_WEB_PORT=28080
+USER reelay
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:28080/api/health', timeout=3)"
+CMD ["python", "-m", "reelay.fnos.runtime"]

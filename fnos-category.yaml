@@ -1,0 +1,14 @@
+movie:
+  电影:
+tv:
+  动漫:
+    genre_ids: '16'
+  综艺:
+    genre_ids: '10764,10767'
+  日剧:
+    origin_country: 'JP'
+  英剧:
+    origin_country: 'GB,UK'
+  美剧:
+    origin_country: 'US'
+  电视剧:

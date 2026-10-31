@@ -1,3 +1,6 @@
+> **FNOS维护分支**：来源管理、115分享前置核验、现有LitePan/OpenList/Emby联动。
+> 最小部署和机器人命令见 [FNOS.md](FNOS.md)。原项目与MIT许可保留，以下为上游说明。
+
 <div align="center">
 
 <img src="docs/assets/logo.svg" width="88" alt="Reelay">

@@ -220,6 +220,8 @@ def _describe_videos(videos: list[dict], parsed) -> dict[str, Any]:
     """视频清单 → 视频数、总大小、季与集（与转存同一套选集规则），选不出时 status 为 issue。"""
     result: dict[str, Any] = {'status': 'ok', 'videos': len(videos),
                               'size': sum(x['size'] for x in videos if type(x.get('size')) is int)}
+    result['file_evidence'] = [{'name': str(x['name'])[:240], 'size': x.get('size')} for x in videos[:500]]
+    result['evidence_complete'] = len(videos) <= 500
     try:
         selection = _select_video_items(videos, parsed, scope='share')
         result.update(season=selection['season'], episodes=selection['episodes'], pairs=selection['pairs'])

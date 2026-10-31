@@ -21,6 +21,7 @@ from typing import Any, Iterator
 
 # 名称 → 管理台显示的名称
 NAMES = {
+    'fnos_source_key': 'FNOS文档同步专用密钥（仅来源同步）',
     "llm_api_key": "AI 接口密钥",
     "tmdb_api_key": "TMDB API Key",
     "telegram_api_id": "Telegram API ID",

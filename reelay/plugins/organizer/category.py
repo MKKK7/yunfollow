@@ -51,8 +51,8 @@ def validate_strategy(strategy: Any) -> None:
             raise ValueError(f"{media_type} 分类必须是非空对象")
         for path, conditions in categories.items():
             parts = path.split("/") if isinstance(path, str) else []
-            if len(parts) != 2 or any(not p or p != p.strip() or p in (".", "..") for p in parts):
-                raise ValueError(f"{media_type}.{path} 必须是「一级/二级」路径")
+            if len(parts) not in (1, 2) or any(not p or p != p.strip() or p in (".", "..") or '\\' in p for p in parts):
+                raise ValueError(f"{media_type}.{path} 必须是安全的一级或二级分类路径")
             if conditions is None:
                 continue
             if not isinstance(conditions, Mapping) or set(conditions) - ALLOWED_FIELDS:

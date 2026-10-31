@@ -117,7 +117,7 @@ class TestCategoryStrategy(unittest.TestCase):
 
     def test_invalid_category_file_is_rejected(self):
         from reelay.plugins.organizer.category import validate_strategy
-        for strategy in ({"music": {"音乐/全部": {}}}, {"tv": {"只有一级": {}}},
+        for strategy in ({"music": {"音乐/全部": {}}}, {"tv": {"../不安全": {}}},
                          {"tv": {"剧集/英语": {"original_language": "en"}}}, {"tv": {"剧集/空": {"genre_ids": ","}}}):
             with self.subTest(strategy=strategy), self.assertRaises(ValueError):
                 validate_strategy(strategy)

@@ -47,6 +47,9 @@ def client_for(base_url: str, key: str | None = None) -> Any | None:
     key = key or secret_store.get("llm_api_key")
     if not key:
         return None
+    if base_url.rstrip("/").endswith("/anthropic"):
+        from ..fnos.anthropic import AnthropicClient
+        return AnthropicClient(base_url, key)
     try:
         from openai import AsyncOpenAI, DefaultAsyncHttpx2Client  # 延迟导入
         via = proxy.url_for("ai")
@@ -178,9 +181,22 @@ def _bare_list(reply: Any, schema: dict) -> Any:
 
 def response_format(schema: dict, name: str, rule: dict | None) -> dict:
     # 显式兼容 JSON mode 时仍执行完整本地校验，不在 API 报错后静默降级格式。
-    if (rule or {}).get("llm_response_format") == "json_object":
+    if (rule or runtime.get('defaults', {}) or {}).get("llm_response_format") == "json_object":
         return {"type": "json_object"}
     return {"type": "json_schema", "json_schema": {"name": name, "strict": True, "schema": schema}}
+
+
+def structured_payload(content: str) -> Any:
+    """Remove recognized reasoning/format wrappers, then parse the entire JSON value."""
+    value = content.strip()
+    if value.startswith('<think>'):
+        _, end, value = value.partition('</think>')
+        if not end:
+            raise ValueError('Unterminated reasoning wrapper')
+        value = value.strip()
+    if value.startswith('```json\n') and value.endswith('```'):
+        value = value[8:-3].strip()
+    return json.loads(value)
 
 
 async def complete_json(client, *, model: str, purpose: str, messages: list[dict], schema: dict, name: str,
@@ -193,12 +209,20 @@ async def complete_json(client, *, model: str, purpose: str, messages: list[dict
     if client is None:
         raise AIError("unavailable")
     attempts = 0
+    fmt = response_format(schema, name, rule)
+    if fmt['type'] == 'json_object':
+        messages = [dict(m) for m in messages]
+        instruction = 'Only output JSON with exactly this schema; do not include reasoning: ' + json.dumps(schema, ensure_ascii=False)
+        if messages and messages[0].get('role') == 'system':
+            messages[0]['content'] = str(messages[0].get('content') or '') + '\n' + instruction
+        else:
+            messages.insert(0, {'role': 'system', 'content': instruction})
     while True:
         attempts += 1
         try:
             response, started = await request(
                 client, purpose=purpose, task_id=task_id, model=model, messages=messages,
-                response_format=response_format(schema, name, rule), temperature=0, timeout=timeout)
+                  response_format=fmt, temperature=0, timeout=timeout)
         except Exception as exc:
             # 不保留 SDK 异常正文（可能带网关凭证或请求头），只留类别。
             raise AIError(type(exc).__name__) from None
@@ -208,7 +232,7 @@ async def complete_json(client, *, model: str, purpose: str, messages: list[dict
             record(purpose, model, started, outcome="refused", usage=usage, task_id=task_id)
             raise AIError("refused")
         try:
-            result = validate(_bare_list(json.loads(message.content or "{}"), schema))
+            result = validate(_bare_list(structured_payload(message.content or "{}"), schema))
         except (ValueError, TypeError, KeyError) as exc:
             record(purpose, model, started, outcome="invalid", error=str(exc), usage=usage, task_id=task_id)
             if attempts > invalid_retries:

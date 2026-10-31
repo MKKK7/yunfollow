@@ -108,6 +108,8 @@ def create_app(*, data_dir: str | Path | None = None, frontend_dir: str | Path |
     if mcp:
         # 不在 /api 下、不走管理台登录：端点自己按 MCP 访问令牌鉴权
         app.add_route("/mcp", mcp, methods=["GET", "POST", "DELETE"])
+    from ..fnos.api import router as fnos_router
+    app.include_router(fnos_router(service))
     _frontend(app, Path(frontend_dir or paths.PROJECT_ROOT / "web" / "dist").resolve())
     return app
 

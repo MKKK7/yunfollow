@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import os
 import time
 
 from .core import messages, paths
@@ -147,6 +148,8 @@ async def _source_loop(pipeline: Pipeline, emit, *, poll_interval: float = 1) ->
         alert_after = int(pipeline.cfg["telegram"]["alert_after_sec"])
         name = pipeline.cfg["providers"]["source"]
         source = pipeline.reg.get_provider("source", name)
+        if hasattr(source, 'bind_pipeline'):
+            source.bind_pipeline(pipeline)
         if hasattr(source, "configure"):
             source.configure([bot for item in pipeline.cfg["sources"] for bot in source_bots(item)])
         if hasattr(source, "bind_watermark"):
@@ -220,17 +223,20 @@ async def _run_live() -> int:
     store = Store(str(paths.DATABASE))
     pipeline = Pipeline(reg, store, cfg)
     service = ManagementService(store, pipeline, config_path=paths.CONFIG)
-    from .control.bot import ControlBot
+    if os.getenv("FNOS_BOT_API", "") == "1":
+        from .fnos.bot import Bot as ControlBot
+    else:
+        from .control.bot import ControlBot
     bot = ControlBot(service)
     tasks = []
     try:
         await bot.start()
         console = reg.providers.get("notify", {}).get("console")
         if console and hasattr(console, "configure"):
-            console.configure(sender=bot.send if bot.enabled else None)
+            console.configure(sender=bot.send if bot.enabled and os.getenv('FNOS_BOT_API') != '1' else None)
 
         async def emit(raw: RawMessage) -> None:
-            await pipeline.accept(PipelineContext(raw=raw))
+            return await pipeline.accept(PipelineContext(raw=raw))
 
         worker = Worker(pipeline, store, concurrency=cfg["runtime"]["concurrency"])
         pipeline.hold_daily(900)  # 日报等启动补拉的消息解析完再发，最多等 15 分钟
