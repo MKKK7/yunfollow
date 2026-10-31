@@ -11,7 +11,8 @@ def main():
         import runpy
         runpy.run_path('/app/init_fnos.py', run_name='__main__')
     commands = [[sys.executable, '-c', 'from reelay.web.app import main; main()'],
-                [sys.executable, '-m', 'reelay.main']]
+                [sys.executable, '-m', 'reelay.main'],
+                [sys.executable, '-c', 'import asyncio; from reelay.fnos.kdocs import run; asyncio.run(run())']]
     children = []
     stopping = False
 

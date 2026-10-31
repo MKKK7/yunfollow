@@ -113,7 +113,7 @@ class Catalog:
                 snapshot = self.store.state_get('fnos_documents', source['id'], {})
                 observed = snapshot.get('received_at', 0)
                 failed_sync = health.get('sync_state') not in (None, 'ok') and health.get('last_sync_attempt_at', 0) > observed
-                health = {**health, 'sync_mode': 'authorized_cli_bridge', 'last_sync_at': observed,
+                health = {**health, 'sync_mode': health.get('sync_mode', 'authorized_cli_bridge'), 'last_sync_at': observed,
                           'completeness': snapshot.get('completeness', {}).get('status', 'unknown'),
                           'state': health['sync_state'] if failed_sync else ('ok' if observed and time.time() - observed < 1800 else ('stale' if observed else 'needs_sync'))}
             result.append({**source, 'health': health})

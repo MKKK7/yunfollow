@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   reelay-fnos:
-    image: reelay-fnos:0.2.0
+    image: reelay-fnos:0.2.1
     container_name: reelay-fnos
     restart: always
     ports:
@@ -11,6 +11,7 @@ services:
     volumes:
       - /vol1/1000/AppData/Reelay-FNOS/data:/app/data
       - /vol1/1000/StrmLink/litePan:/app/strm:ro
+      - /vol1/1000/AppData/Reelay-FNOS/kdocs:/home/reelay/.config/kdocs-cli
     environment:
       - TZ=Asia/Shanghai
       - FNOS_BOT_API=1

@@ -9,6 +9,8 @@ COPY fnos-adapters/ /app/fnos-adapters/
 COPY LICENSE /app/LICENSE
 COPY FNOS.md /app/FNOS.md
 COPY init_fnos.py /app/init_fnos.py
+COPY scripts/install-kdocs-cli.py /tmp/install-kdocs-cli.py
+RUN python /tmp/install-kdocs-cli.py && rm /tmp/install-kdocs-cli.py
 LABEL org.opencontainers.image.source="https://github.com/MKKK7/reelay-fnos" org.opencontainers.image.licenses="MIT"
 RUN chmod -R a+rX /app/reelay /app/fnos-adapters /app/FNOS.md /app/LICENSE
 ENV PYTHONPATH=/app FNOS_BOT_API=1 REELAY_WEB_HOST=0.0.0.0 REELAY_WEB_PORT=28080

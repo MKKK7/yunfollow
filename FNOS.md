@@ -49,9 +49,17 @@ Telegram暂只支持公开频道，通过公开历史搜索页按片名查询，
 
 ## 文档持续同步
 
-复用官方`kdocs-cli`已授权的账号。`fnos-adapters/kdocs-bridge.mjs`每次从容器获取
-用户配置的文档链接，读取后仅推送分享候选、短标题、内容哈希和完整性标记。
-正文仅在内存中处理，不落盘；不导出WPS账号Token。
+0.2.1开始在容器内运行官方Linux版`kdocs-cli`，使用固定版本和SHA256校验。
+每15分钟独立读取登记的文档，新增加文档也会触发同步，不需要电脑在线。
+正文只在内存处理；仅保存分享候选、短标题、内容哈希和完整性标记。
+
+CLI凭据通过官方`auth login`或用户明确授权的迁移导入；它在Linux容器中使用官方
+加密文件后端，持久卷挂载到`/home/reelay/.config/kdocs-cli`，目录权限700、文件600。
+重建容器不会删除授权。账号令牌到期或被撤销时仍需重新授权，不能保证永久有效。
+首次独立授权可在终端执行`docker exec -it reelay-fnos kdocs-cli auth login`，
+自行完成输出链接的授权；不要把令牌输出到日志或提交到仓库。
+
+以下电脑桥接仅作为可选兼容方式；已迁移到容器的部署应停用电脑计划任务。
 
 桥接可在已有授权的Windows电脑运行，每15分钟一次。需要该电脑在线并保持对应用户登录。
 超过30分钟没有新同步时，容器将来源标成过期，不把旧快照当成已刷新。
@@ -72,7 +80,7 @@ Windows可用任务计划程序按当前登录用户运行该命令。停止桥�
 ## 部署
 
 ```text
-docker build -f Dockerfile.fnos -t reelay-fnos:0.2.0 .
+docker build -f Dockerfile.fnos -t reelay-fnos:0.2.1 .
 docker compose -f compose.fnos.yml up -d
 ```
 

@@ -23,6 +23,7 @@ data/
 *.b64
 verify_fnos_live.py
 verify_native.py
+kdocs-cli
 
 # ---- IDE / OS ----
 .idea/

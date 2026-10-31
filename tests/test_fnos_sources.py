@@ -236,3 +236,30 @@ class TimelineTests(unittest.TestCase):
         states = {s['id']:s['state'] for s in summary(ctx)['stages']}
         self.assertEqual(states['transfer'], 'done')
         self.assertEqual(states['emby'], 'pending')
+
+
+class ContainerDocumentTests(unittest.IsolatedAsyncioTestCase):
+    async def test_container_sync_reads_registered_document_and_persists_candidates_only(self):
+        from reelay.fnos.kdocs import refresh_documents
+        store = Store(':memory:')
+        catalog = Catalog(store)
+        item = catalog.add('kdocs', 'https://www.kdocs.cn/l/ExampleDoc')
+        reader = AsyncMock(return_value={'source':{'url':item['url']},'status':'ok','contentPersisted':False,
+            'content':'must not persist','candidates':{'shares115':[{'shareCode':'abc123','contextSnippet':'title'}]}})
+        result = await refresh_documents(store, read=reader)
+        self.assertEqual(result[0]['candidates'], 1)
+        self.assertEqual(catalog.public()[0]['health']['sync_mode'], 'container_cli')
+        self.assertNotIn('must not persist', json.dumps(store.state_get('fnos_documents',item['id'])))
+        self.assertEqual(reader.call_args.args[0][-1], '/usr/local/bin/kdocs-cli')
+        store.close()
+
+    async def test_failed_container_sync_preserves_previous_snapshot_but_reports_error(self):
+        from reelay.fnos.kdocs import refresh_documents
+        store = Store(':memory:')
+        catalog = Catalog(store)
+        item = catalog.add('kdocs', 'https://www.kdocs.cn/l/ExampleDoc')
+        catalog.snapshot(item['id'], {'source':{'url':item['url']},'status':'ok','contentPersisted':False,'candidates':{'shares115':[]}})
+        await refresh_documents(store, read=AsyncMock(side_effect=RuntimeError('offline')))
+        self.assertEqual(catalog.public()[0]['health']['state'], 'sync_error')
+        self.assertIsNotNone(store.state_get('fnos_documents',item['id']))
+        store.close()
