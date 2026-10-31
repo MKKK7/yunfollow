@@ -82,7 +82,7 @@ Windows可用任务计划程序按当前登录用户运行该命令。停止桥�
 ## 部署
 
 ```text
-docker build -f Dockerfile.fnos -t reelay-fnos:0.2.1 .
+docker build -f Dockerfile.fnos -t reelay-fnos:0.2.4 .
 docker compose -f compose.fnos.yml up -d
 ```
 

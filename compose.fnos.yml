@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   reelay-fnos:
-    image: reelay-fnos:0.2.1
+    image: reelay-fnos:0.2.4
     container_name: reelay-fnos
     restart: always
     ports:
