@@ -6,11 +6,11 @@ from unittest.mock import AsyncMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from reelay.core.contracts import ParsedResource, RawMessage
+from reelay.core.contracts import ParsedResource, RawMessage, PipelineContext, TaskState
 from reelay.core.store import Store
 from reelay.fnos import candidates
 from reelay.fnos.catalog import Catalog
-from reelay.fnos.classification import category
+from reelay.fnos.classification import category, Classify, ClassificationWait, choose
 from reelay.fnos.console import router
 from reelay.fnos.intent import interpret
 from reelay.fnos.management import refresh_airing, subscriptions
@@ -80,6 +80,24 @@ class YunTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(category(ParsedResource(media_type='movie', genre_ids=[16], origin_country=['JP'])), '电影')
         self.assertEqual(category(ParsedResource(media_type='tv', genre_ids=[18], origin_country=['JP'])), '日剧')
         self.assertIsNone(category(ParsedResource(media_type='tv', origin_country=[])))
+
+    async def test_unclear_category_pauses_after_cloud_organization_and_resumes_after_choice(self):
+        ctx = PipelineContext(raw=RawMessage(source='@fnos_public', msg_id='classify-test', text='Test Show', extra={'fnos_subscription': self.target}),
+                              parsed=ParsedResource(title='Test Show', media_type='tv', season=1, episodes=[1]))
+        ctx.meta['tmdb'] = {'matched': True, 'tmdbid': 123}
+        self.assertTrue(await Classify().run(ctx))
+        self.assertEqual(ctx.meta['library']['relative_category'], '待分类')
+        ctx.meta['organize'] = {'applied': True}
+        ctx.state = TaskState.NEED_MANUAL
+        service = NS(store=self.store, requeue_organize=AsyncMock())
+        with patch('reelay.fnos.classification.runtime.services', return_value=service), patch('reelay.fnos.classification.stage'):
+            self.assertFalse(await ClassificationWait().run(ctx))
+        self.store.save_task(ctx)
+        await choose(service, ctx.task_id, '动漫')
+        service.requeue_organize.assert_awaited_once_with(ctx.task_id)
+        saved = self.store.get_task(ctx.task_id)
+        self.assertFalse(saved.meta['yun_classification']['waiting'])
+        self.assertEqual(saved.meta['library']['relative_category'], '动漫')
 
     async def test_future_episode_is_not_reported_missing(self):
         service = NS(store=self.store, pipeline=NS(scope=lambda: contextlib.nullcontext()))

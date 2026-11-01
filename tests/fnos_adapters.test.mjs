@@ -2,9 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collect } from '../fnos-adapters/telegram.mjs';
 import { syncOnce } from '../fnos-adapters/kdocs-bridge.mjs';
+import { extractCandidates } from '../fnos-adapters/kdocs-read.mjs';
+import { parseArticle } from '../fnos-adapters/telegram.mjs';
 
 const channel = '<div class="tgme_widget_message" data-post="examplechannel/1"><div class="tgme_widget_message_text">Test Show <a href="https://telegra.ph/example-show">资源</a></div></div>';
 const article = '<article><h1>Test Show</h1><p>TMDB ID:123</p><a href="https://115.com/s/example123?password=abcd">资源</a></article>';
+
+test('offline links remain115 offline drafts and never become other-cloud shares', () => {
+  const magnet = 'magnet:?xt=urn:btih:' + 'a'.repeat(40);
+  const value = extractCandidates('Test Show 第9集 ' + magnet + '\nhttps://pan.quark.cn/s/not-supported');
+  assert.equal(value.shares115.length, 0);
+  assert.equal(value.offlineLinks[0].uri, magnet);
+  const parsed = parseArticle(`<article><h1>Test Show</h1><a href="${magnet}">磁力</a><a href="https://pan.quark.cn/s/ignored">忽略</a></article>`, 'https://telegra.ph/example');
+  assert.deepEqual(parsed.offlineLinks, [magnet]);
+  assert.equal(parsed.shares.length, 0);
+});
 
 test('public channel search uses an encoded query and returns current observations even without new events', async () => {
   const urls = [];
