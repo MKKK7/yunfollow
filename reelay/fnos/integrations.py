@@ -4,7 +4,7 @@ import asyncio
 import os
 import time
 
-from ..core import paths
+from ..core import paths, ai, tmdb, secret_store
 from .http import api
 from .media import LitePan
 from .catalog import Catalog
@@ -76,9 +76,25 @@ async def check(service):
             health = source['health']
             result['services'][name] = {'ready': health.get('state') == 'ok' and time.time() - health.get('last_success_at', 0) < 1800,
                                         'last_read_at': health.get('last_success_at'), 'source_check': True}
-    for component, label in [('llm', '模型接口'), ('tmdb', 'TMDB')]:
-        observed = service.store.health_status().get(component, {})
-        result['services'][label] = {'ready': observed.get('status') == 'connected' and not observed.get('stale'),
-            'error': observed.get('error') or ('最近没有成功调用记录' if observed.get('stale', True) else '')}
+    try:
+        with service.pipeline.scope():
+            response = await asyncio.to_thread(tmdb._request, '/configuration', {}, timeout=10)
+        result['services']['TMDB'] = {'ready': bool(response.get('images'))}
+    except Exception as exc:
+        result['services']['TMDB'] = {'ready': False, 'configured': bool(secret_store.get('tmdb_api_key')), 'error': type(exc).__name__}
+    try:
+        client, model = service.ai_client()
+        def valid(value):
+            if not isinstance(value, dict) or value != {'ok': True}:
+                raise ValueError('Invalid health response')
+            return value
+        with service.pipeline.scope():
+            await ai.complete_json(client, model=model, purpose='yunfollow_connection_check',
+                messages=[{'role': 'user', 'content': 'Only output {"ok":true}.'}],
+                schema={'type': 'object', 'properties': {'ok': {'type': 'boolean'}}, 'required': ['ok'], 'additionalProperties': False},
+                name='connection_check', validate=valid, rule=service.pipeline.cfg.get('llm', {}), timeout=30, invalid_retries=0)
+        result['services']['模型接口'] = {'ready': True}
+    except Exception as exc:
+        result['services']['模型接口'] = {'ready': False, 'configured': bool(secret_store.get('llm_api_key')), 'error': type(exc).__name__}
     service.store.state_set('fnos_integrations', 'last', result)
     return result
