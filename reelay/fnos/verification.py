@@ -10,10 +10,12 @@ from .timeline import stage
 
 def existing_connection(snapshot):
     """Never treat LitePan's masked key as a usable credential."""
+    key = os.getenv('YUNFOLLOW_EMBY_READ_KEY', '')
+    if key:
+        return {**snapshot, 'api_key': key}
     if '*' not in snapshot.get('api_key', ''):
         return snapshot
-    key = os.getenv('YUNFOLLOW_EMBY_READ_KEY', '')
-    return {**snapshot, 'api_key': key} if key else None
+    return None
 
 
 async def verify(ctx, service):

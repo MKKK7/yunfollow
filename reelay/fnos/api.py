@@ -139,6 +139,11 @@ def router(service, prefix='/fnos/v1'):
     async def preview(body: Preview):
         return await intake.preview(body.text, 'api-owner', body.preferences)
 
+    @route.post('/chat', dependencies=[Depends(proposal)])
+    async def chat(body: Preview):
+        from .conversation import answer
+        return await answer(service, body.text)
+
     @route.post('/drafts/{draft_id}/confirm', dependencies=[Depends(owner)])
     async def confirm(draft_id: str, body: Confirm):
         return await intake.confirm(draft_id, 'api-owner', body.tmdbid, body.season)

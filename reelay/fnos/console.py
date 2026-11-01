@@ -64,7 +64,8 @@ def router(service):
     @route.get('/overview')
     async def overview():
         from .offline import jobs
-        return {'name': '云追 YunFollow', 'version': '0.3.0', 'tasks': management.tasks(service), 'offline': jobs(service.store),
+        from .. import __version__
+        return {'name': '云追 YunFollow', 'version': __version__, 'tasks': management.tasks(service), 'offline': jobs(service.store),
                 'subscriptions': management.subscriptions(service), 'categories': CATEGORIES,
                 'search': service.store.state_get('fnos_sources', 'progress', {}),
                 'video_transport': '115_only', 'integrations': integrations.latest(service.store)}
@@ -182,6 +183,11 @@ def router(service):
     @route.post('/drafts')
     async def draft(body: IntakeText):
         return await Intake(service).preview(body.text, 'console', body.preferences)
+
+    @route.post('/chat')
+    async def chat(body: IntakeText):
+        from .conversation import answer
+        return await answer(service, body.text)
 
     @route.post('/drafts/{identity}/confirm')
     async def confirm(identity: str, body: Selection):

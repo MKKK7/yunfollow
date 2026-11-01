@@ -82,7 +82,7 @@ Windows可用任务计划程序按当前登录用户运行该命令。停止桥�
 ## 部署
 
 ```text
-docker build -f Dockerfile.yunfollow -t yunfollow:0.3.0 .
+docker build -f Dockerfile.yunfollow -t yunfollow:0.3.1 .
 docker compose -f compose.yunfollow.yml up -d
 ```
 

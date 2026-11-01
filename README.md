@@ -24,7 +24,7 @@ cd web
 npm ci
 npm run build
 cd ..
-docker build -f Dockerfile.yunfollow -t yunfollow:0.3.0 .
+docker build -f Dockerfile.yunfollow -t yunfollow:0.3.1 .
 docker compose -f compose.yunfollow.yml up -d
 ```
 

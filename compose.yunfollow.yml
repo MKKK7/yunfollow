@@ -1,6 +1,6 @@
 services:
   yunfollow:
-    image: yunfollow:0.3.0
+    image: yunfollow:0.3.1
     container_name: yunfollow
     restart: always
     ports:

@@ -22,6 +22,14 @@
 
 提交结果未知时只读核验，不盲目重新提交。115离线完成仍需在网页或Bot确认实际文件属于目标作品；未识别的季集不自动整理。离线来源不等同于115分享，不能将其他网盘链接当离线链接使用。
 
+## 只读对话
+
+建议密钥可调用`POST /chat`，正文`{"text":"我库里有什么？"}`。支持任务进度、最近保存、Emby全库查询，以及“还有呢”“查一下《作品名》”等接续问题。
+
+返回`text`、`scope`、`total`和分页按钮。`scope=emby`表示查询到Emby实际记录；`scope=yunfollow_only`表示Emby暂时不可用，仅展示云追自己的记录，不能称为全库。最近115转存时间与Emby入库时间分开显示。
+
+对话解析只允许只读查询，不会创建订阅、选择资源、删除、移动或转存。Bot仍限制为已配置的用户私聊。
+
 ## 常见状态
 
 `pending`未开始、`running`执行中、`waiting_confirmation`等待确认、`waiting_retry`等待重试、`done`成功、`failed`失败、`skipped`跳过。任务本身另有`received/queued/saving/stored/organizing/need_manual/done`等状态。

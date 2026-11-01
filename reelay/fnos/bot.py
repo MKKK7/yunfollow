@@ -68,7 +68,11 @@ class Bot:
         if callback:
             await call('answerCallbackQuery', {'callback_query_id': callback['id']})
             parts = str(callback.get('data', '')).split(':')
-            if len(parts) == 2 and parts[0] == 'offsub':
+            if len(parts) == 3 and parts[0] == 'chat':
+                from .conversation import page
+                result = await page(self.service, parts[1], parts[2])
+                await self.send(result['text'], reply_markup={'inline_keyboard': result['buttons']})
+            elif len(parts) == 2 and parts[0] == 'offsub':
                 from .offline import create
                 uri = self.service.store.state_get('yun_bot', 'offline_uri', '')
                 value = create(self.service, uri, int(parts[1]))
@@ -127,6 +131,11 @@ class Bot:
         text = message.get('text', '').strip()
         if not text:
             return
+        from .conversation import is_question, context, answer
+        if is_question(text, context(self.service.store)):
+            result = await answer(self.service, text.removeprefix('/chat').strip())
+            await self.send(result['text'], reply_markup={'inline_keyboard': result['buttons']})
+            return
         if text.startswith(('magnet:?', 'ed2k://')):
             from .offline import create
             subs = self.service.store.subscriptions()
@@ -140,6 +149,10 @@ class Bot:
         requested_text = text
         from .intent import interpret
         text = await interpret(self.service, text)
+        if text.startswith('/chat '):
+            result = await answer(self.service, text.removeprefix('/chat ').strip())
+            await self.send(result['text'], reply_markup={'inline_keyboard': result['buttons']})
+            return
         catalog = Catalog(self.service.store)
         if text == '/offline':
             from .offline import jobs
@@ -230,7 +243,7 @@ class Bot:
             await self.send(f"{view['title']}：{view['state']}\n" + '\n'.join(f"{s['label']}：{s['state']}" for s in view['stages']) + '\n' + (view['blocker'] or ''))
             return
         if text in ('/start', '/help'):
-            await self.send('发送剧名和年份，确认作品与季数后自动追更。默认1080p、中文字幕、115云端转存、不重复。\n/status 真实进度\n/sources 来源\n/source add 链接 添加频道/文档\n/source add pansou http://地址:端口\n/search 立即搜索\n/audit 排除原因\n/job 任务ID 查看联动阶段\n/watch 720p any 剧名 调整偏好。')
+            await self.send('可以直接和我对话：\n“任务进度如何？”\n“我最近存了什么？”\n“我库里有什么？”\n接着问“还有呢”“查一下《胆大党》”，也可以点按钮翻页。\n\n想追更时发送剧名和年份，确认作品与资源后处理。默认1080p、中文字幕、只走115、不重复。\n/status 进度\n/recent 最近保存\n/library 媒体库\n/sources 来源\n/search 搜索\n/results 候选\n/job 任务ID 联动阶段。')
             return
         if text in ('/status', '/subscriptions'):
             subs = management.subscriptions(self.service)
