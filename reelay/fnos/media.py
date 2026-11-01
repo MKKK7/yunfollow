@@ -166,7 +166,7 @@ class FnosMedia:
             output = '/'.join(x.strip('/') for x in (task.get('group_dir', ''), task.get('output_folder', '')) if x)
             local = Path(os.getenv('FNOS_STRM_ROOT', '/app/strm')) / safe_relative(output) / safe_relative(rel)
             stage(ctx, 'writeback', 'running', provider='OpenList')
-            receipt = await self.writeback(local, str(PurePosixPath(task['path']) / rel), tmdbid)
+            receipt = await self.writeback(local, str(PurePosixPath(task['path']) / rel), tmdbid, ctx=ctx)
             stage(ctx, 'writeback', 'done', provider='OpenList', **receipt)
         state['metadata_complete'] = True
         runtime.services().store.save_task(ctx)
@@ -178,10 +178,15 @@ class FnosMedia:
         else:
             raise ValueError('Select an existing LitePan Emby config and library for targeted refresh')
         state['complete'] = True
+        try:
+            from .verification import verify
+            await verify(ctx, runtime.services())
+        except Exception as exc:
+            stage(ctx, 'verify', 'waiting_retry', provider='115 / Emby', reason=type(exc).__name__)
         ctx.log('LitePan STRM + single-work scrape, metadata writeback and LitePan Emby refresh complete')
         return True
 
-    async def writeback(self, local, cloud, tmdbid):
+    async def writeback(self, local, cloud, tmdbid, ctx=None):
         files = metadata_files(local)
         if not files or not any(f.suffix == '.nfo' for f in files):
             raise ValueError('Scraped NFO missing from mounted STRM directory')
@@ -200,6 +205,8 @@ class FnosMedia:
         base = os.getenv('OPENLIST_URL', 'http://127.0.0.1:5244').rstrip('/')
         if not token:
             raise ValueError('OpenList metadata upload credential not configured')
+        verified = 0
+        verified_bytes = 0
         for file in files:
             relative = file.relative_to(local).as_posix()
             target = os.getenv('OPENLIST_MOUNT', '/115网盘').rstrip('/') + '/' + cloud.strip('/') + '/' + relative
@@ -230,6 +237,10 @@ class FnosMedia:
                 return await asyncio.to_thread(download_metadata)
             wanted = hashlib.sha256(body).hexdigest()
             if await remote_hash() == wanted:
+                verified += 1
+                verified_bytes += len(body)
+                if ctx:
+                    stage(ctx, 'writeback', 'running', provider='OpenList', verified=verified, total=len(files), bytes_verified=verified_bytes)
                 continue
             def upload(body=body, target=target):
                 req = urllib.request.Request(base + '/api/fs/put', data=body, method='PUT',
@@ -245,4 +256,8 @@ class FnosMedia:
             await asyncio.to_thread(upload)
             if await remote_hash() != wanted:
                 raise IntegrationError('Metadata readback digest mismatch')
+            verified += 1
+            verified_bytes += len(body)
+            if ctx:
+                stage(ctx, 'writeback', 'running', provider='OpenList', verified=verified, total=len(files), bytes_verified=verified_bytes)
         return {'files': len(files), 'bytes': sum(f.stat().st_size for f in files), 'sha256_verified': True}

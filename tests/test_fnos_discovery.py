@@ -11,4 +11,4 @@ class Only115Tests(unittest.IsolatedAsyncioTestCase):
         with patch('reelay.fnos.sources.api', new_callable=AsyncMock, return_value=response) as request:
             items = await FnosSources().collect({'kind': 'pansou', 'url': 'http://pansou.test'}, [{'title': 'Test Show'}], None, None, lambda *a, **k: None)
         self.assertEqual(items, {})
-        self.assertEqual(request.call_args.args[1]['cloud_types'], ['115'])
+        self.assertEqual(request.call_args.args[1]['cloud_types'], ['115', 'magnet', 'ed2k'])

@@ -117,6 +117,11 @@ class Preflight:
         # Only bounded, sanitized diagnostics are exposed. Share passwords/URLs stay private.
         value = {**cache, 'verdict': verdict, 'reason': reason, 'at': time.time()}
         self.store.state_set('fnos_preflight', identity, value)
+        if verdict == 'excluded' and reason == 'share_unavailable':
+            for key, item in self.store.state_items('yun_candidates').items():
+                if item.get('candidate', {}).get('share', {}).get('shareCode') == share.get('shareCode'):
+                    item['state'] = 'unavailable'
+                    self.store.state_set('yun_candidates', key, item)
         self.audit(identity, source_id, candidate['title'], verdict, reason)
         key = identity + ':' + value['file_hash'][:16] if verdict == 'accepted' else identity
         if verdict == 'accepted':

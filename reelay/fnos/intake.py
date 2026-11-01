@@ -6,8 +6,21 @@ import hashlib
 import json
 import secrets
 import time
+import re
 
 DEFAULT_PREFERENCES = {"min_resolution": "1080p", "subtitles": "zh", "replace_existing": False}
+
+
+def preferences_from_text(text):
+    value = {}
+    match = re.search(r'(?i)(?<!\d)(720p|1080p|2160p|4k)(?!\w)', text)
+    if match:
+        value['min_resolution'] = '2160p' if match[1].lower() == '4k' else match[1].lower()
+    if any(word in text for word in ('字幕不限', '不限字幕', '不要求字幕', '无需字幕')):
+        value['subtitles'] = 'any'
+    elif any(word in text for word in ('中文字幕', '简中', '繁中', '中字')):
+        value['subtitles'] = 'zh'
+    return value
 
 
 def preferences(value: dict | None) -> dict:
@@ -32,7 +45,7 @@ class Intake:
         candidates = found.get("candidates") or []
         if not candidates:
             return {"state": "needs_information", "message": "未找到可靠的 TMDB 剧集，请补充片名和年份，或先配置 TMDB。", "query": found.get("query"), "candidates": []}
-        draft = {"id": secrets.token_hex(12), "owner": owner, "created_at": time.time(), "expires_at": time.time() + 900, "state": "awaiting_confirmation", "query": found.get("query"), "candidates": candidates, "preferences": preferences(prefs)}
+        draft = {"id": secrets.token_hex(12), "owner": owner, "created_at": time.time(), "expires_at": time.time() + 900, "state": "awaiting_confirmation", "query": found.get("query"), "candidates": candidates, "preferences": preferences({**preferences_from_text(text), **(prefs or {})})}
         self.store.state_set("fnos_drafts", draft["id"], draft)
         return {k: v for k, v in draft.items() if k != "owner"}
 

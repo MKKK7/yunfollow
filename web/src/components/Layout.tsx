@@ -25,16 +25,22 @@ interface NavEntry {
 }
 
 const PRIMARY: NavEntry[] = [
+  { path: '/workflow/tasks', label: '云追任务流程', icon: ListChecks },
+  { path: '/workflow/pending', label: '待处理与候选', icon: Inbox },
   { path: '/dashboard', label: '总览', icon: LayoutDashboard },
   { path: '/inbox', label: '待审批', icon: Inbox, badge: 'pending' },
   { path: '/tasks', label: '任务', icon: ListChecks, badge: 'failed' },
 ];
 const MEDIA: NavEntry[] = [
+  { path: '/workflow/subscriptions', label: '订阅与补集', icon: BellRing },
   { path: '/library', label: '媒体库', icon: LibraryBig },
   { path: '/subscriptions', label: '追剧订阅', icon: BellRing },
   { path: '/stats', label: '统计', icon: ChartColumn },
 ];
 const SYSTEM: NavEntry[] = [
+  { path: '/workflow/rules', label: '命名与分类', icon: Settings2 },
+  { path: '/workflow/sources', label: '来源管理', icon: FolderTree },
+  { path: '/workflow/integrations', label: '服务联动', icon: Puzzle },
   { path: '/config', label: '设置', icon: Settings2 },
   { path: '/extensions', label: '插件', icon: Puzzle },
 ];
@@ -135,8 +141,8 @@ function Brand() {
         <Clapperboard className="size-4" />
       </div>
       <div className="leading-tight">
-        <div className="text-[15px] font-semibold tracking-tight text-foreground">Reelay</div>
-        <div className="text-[11px] text-muted-foreground">网盘转存助手</div>
+        <div className="text-[15px] font-semibold tracking-tight text-foreground">云追 YunFollow</div>
+        <div className="text-[11px] text-muted-foreground">115云端追更</div>
       </div>
     </div>
   );

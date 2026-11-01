@@ -71,14 +71,22 @@ jobs:
         uses: actions/checkout@v7
       - name: 准备 Buildx
         uses: docker/setup-buildx-action@v4
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: 构建云追界面
+        run: npm ci && npm run build
+        working-directory: web
       - name: 构建镜像
         uses: docker/build-push-action@v7
         with:
           context: .
+          file: Dockerfile.yunfollow
           push: false
           load: true
-          tags: reelay:ci
+          tags: yunfollow:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: 镜像冒烟测试
-        run: docker run --rm reelay:ci python -m reelay.main --dry-run
+        run: docker run --rm yunfollow:ci python -m reelay.main --dry-run

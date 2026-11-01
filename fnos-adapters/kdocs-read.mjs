@@ -102,8 +102,13 @@ export function extractCandidates(content) {
   const texts = allStrings(content);
   const shares = new Map();
   const tmdb = new Map();
+  const offline = new Map();
   for (const text of texts) {
     const normalized = text.replace(/&amp;/g, '&');
+    for (const match of normalized.matchAll(/magnet:\?[^\s<>"']+|ed2k:\/\/\|file\|[^|\s]+\|\d+\|[a-fA-F0-9]{32}\|\/?/gi)) {
+      if (match[0].length > 4096) continue;
+      offline.set(match[0], { uri: match[0], contextSnippet: normalized.slice(Math.max(0, match.index - 160), match.index).replace(/https?:\/\/\S+/g, '[link]').slice(-160) });
+    }
     for (const match of normalized.matchAll(/https?:\/\/(?:www\.)?(?:115\.com|115cdn\.com)\/s\/[A-Za-z0-9]+(?:\?[^\s<>"']*)?/gi)) {
       const raw = match[0].replace(/[)\]}>，。；;]+$/g, '');
       const url = new URL(raw);
@@ -127,7 +132,7 @@ export function extractCandidates(content) {
       tmdb.set(`${kind}:${match[2]}`, { id: match[2], mediaType: kind, candidate: true });
     }
   }
-  return { shares115: [...shares.values()], tmdb: [...tmdb.values()] };
+  return { shares115: [...shares.values()], tmdb: [...tmdb.values()], offlineLinks: [...offline.values()].slice(0, 100) };
 }
 
 export async function readDocument({ url = DEFAULT_URL, cli, maxPolls = 8, pollMs = 2000, run = runCliRead, sleep = delay } = {}) {

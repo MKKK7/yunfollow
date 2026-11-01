@@ -55,6 +55,9 @@ class FnosDecision(SubscriptionDecision):
             self.withdraw(ctx)
             ctx.log("FNOS：低于已确认的清晰度要求")
             return Decision.SKIP
+        if ctx.raw.extra.get('yun_resource_confirmed') and baseline != Decision.SKIP:
+            ctx.log('云追：用户已确认此资源版本，按实际文件清单转存')
+            return Decision.SAVE
         if verdict == "review" or baseline == Decision.ASK:
             self.withdraw(ctx)
             ctx.log("FNOS：画质、中文字幕或作品匹配未核实，等待人工确认")

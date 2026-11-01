@@ -94,7 +94,7 @@ def create_app(*, data_dir: str | Path | None = None, frontend_dir: str | Path |
             await bus.stop()
             store.close()
 
-    app = FastAPI(title="Reelay Management API", version=__version__, lifespan=lifespan,
+    app = FastAPI(title="YunFollow Management API", version=__version__, lifespan=lifespan,
                   docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
     # 守卫在内层、CORS 在外层（后加的在外）：开发时 Vite 跨端口访问的预检请求由 CORS 直接应答
     app.add_middleware(auth.Guard, store=store)
@@ -110,6 +110,9 @@ def create_app(*, data_dir: str | Path | None = None, frontend_dir: str | Path |
         app.add_route("/mcp", mcp, methods=["GET", "POST", "DELETE"])
     from ..fnos.api import router as fnos_router
     app.include_router(fnos_router(service))
+    app.include_router(fnos_router(service, prefix='/yunfollow/v1'))
+    from ..fnos.console import router as console_router
+    app.include_router(console_router(service))
     _frontend(app, Path(frontend_dir or paths.PROJECT_ROOT / "web" / "dist").resolve())
     return app
 

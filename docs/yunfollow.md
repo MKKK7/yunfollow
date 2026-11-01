@@ -1,8 +1,8 @@
-# Reelay FNOS最小维护分支
+# 云追 YunFollow 集成说明
 
 基于 [Derrors/reelay](https://github.com/Derrors/reelay) v1.4.1，基线提交
 `60e1a463412261e37e1065910ba05dc02ae354bc`。保留MIT许可证和上游实现。
-维护仓库：https://github.com/MKKK7/reelay-fnos ，分支 `fnos-minimal`。
+维护仓库：https://github.com/MKKK7/yunfollow ，分支 `main`。
 
 ## 范围
 
@@ -58,7 +58,7 @@ Telegram暂只支持公开频道，通过公开历史搜索页按片名查询，
 CLI凭据通过官方`auth login`或用户明确授权的迁移导入；它在Linux容器中使用官方
 加密文件后端，持久卷挂载到`/home/reelay/.config/kdocs-cli`，目录权限700、文件600。
 重建容器不会删除授权。账号令牌到期或被撤销时仍需重新授权，不能保证永久有效。
-首次独立授权可在终端执行`docker exec -it reelay-fnos kdocs-cli auth login`，
+首次独立授权可在终端执行`docker exec -it yunfollow kdocs-cli auth login`，
 自行完成输出链接的授权；不要把令牌输出到日志或提交到仓库。
 
 以下电脑桥接仅作为可选兼容方式；已迁移到容器的部署应停用电脑计划任务。
@@ -82,23 +82,23 @@ Windows可用任务计划程序按当前登录用户运行该命令。停止桥�
 ## 部署
 
 ```text
-docker build -f Dockerfile.fnos -t reelay-fnos:0.2.4 .
-docker compose -f compose.fnos.yml up -d
+docker build -f Dockerfile.yunfollow -t yunfollow:0.3.0 .
+docker compose -f compose.yunfollow.yml up -d
 ```
 
 Compose遵循fnOS常见绝对目录：
 
 ```text
-/vol1/1000/Docker Compose/manage/Reelay-FNOS/docker-compose.yml
-/vol1/1000/AppData/Reelay-FNOS/data
-/vol1/1000/AppData/Reelay-FNOS/integration.env
+/vol1/1000/Docker Compose/manage/YunFollow/docker-compose.yml
+/vol1/1000/AppData/YunFollow/data
+/vol1/1000/AppData/YunFollow/integration.env
 ```
 
 复制`integration.env.example`并填写服务地址、LitePan凭据及OpenList上传凭据。
-Compose项目的`.env`可设置`FNOS_BIND_ADDRESS=NAS_IP`；默认只绑定127.0.0.1。
+Compose项目的`.env`可设置`YUNFOLLOW_BIND_ADDRESS=NAS_IP`；默认只绑定127.0.0.1。
 首次部署须显式设置`FNOS_SAVE_CID`（115媒体库根目录）、`LITEPAN_STRM_TASK_ID`、
 `LITEPAN_EMBY_CONFIG_ID`、`LITEPAN_EMBY_LIBRARIES`（分类到媒体库ID的JSON映射）。
-`init_fnos.py`只创建首次配置，已有配置不会被覆盖。
+`init_yunfollow.py`只创建首次配置，已有配置不会被覆盖。
 
 STRM目录以只读方式挂入；不挂Docker Socket、不使用privileged。
 元数据只允许NFO/图片，10MiB/文件、100MiB/作品、最多100文件。

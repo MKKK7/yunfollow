@@ -21,7 +21,9 @@ cfg = normalize_config({
     'llm': {'base_url': 'https://api.minimaxi.com/anthropic', 'model': 'SET_YOUR_MINIMAX_MODEL'},
     'runtime': {'concurrency': 1},
     'plugins': {
-        'organizer': {'conflict': 'manual', 'layout': 'category'},
+        'organizer': {'conflict': 'manual', 'layout': 'category', 'naming': {
+            'movie': '{{title}}{% if year %} ({{year}}){% endif %}/{{title}}{% if year %} ({{year}}){% endif %}{{fileExt}}',
+            'tv': '{{title}}{% if year %} ({{year}}){% endif %}/Season {{season|pad2}}/{{title}} - {{season_episode}}{{fileExt}}'}},
         'fnos_sources': {'channels': [], 'poll_seconds': 600},
         'fnos_media': {'enabled': True, 'strm_task_id': int(os.getenv('LITEPAN_STRM_TASK_ID', '0')),
                        'emby_config_id': os.getenv('LITEPAN_EMBY_CONFIG_ID', ''),

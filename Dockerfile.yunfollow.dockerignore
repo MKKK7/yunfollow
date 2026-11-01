@@ -1,0 +1,13 @@
+.git
+.github
+.venv
+.ruff_cache
+data
+.env
+*.env
+*.session*
+**/__pycache__
+*.egg-info
+web/node_modules
+web/test-results
+web/playwright-report

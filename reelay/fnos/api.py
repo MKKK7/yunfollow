@@ -31,6 +31,9 @@ class Source(BaseModel):
     model_config = ConfigDict(extra='forbid')
     kind: str
     url: str = Field(max_length=500)
+    name: str = Field(default='', max_length=80)
+    note: str = Field(default='', max_length=500)
+    interval_seconds: int = Field(default=600, ge=60, le=86400)
 
 
 class SyncStatus(BaseModel):
@@ -38,8 +41,13 @@ class SyncStatus(BaseModel):
     state: str
 
 
-def router(service):
-    route = APIRouter(prefix='/fnos/v1', tags=['FNOS workflow'])
+class OfflineInput(BaseModel):
+    uri: str = Field(min_length=10, max_length=4096)
+    subscription_id: int = Field(gt=0)
+
+
+def router(service, prefix='/fnos/v1'):
+    route = APIRouter(prefix=prefix, tags=['YunFollow workflow'])
     intake = Intake(service)
 
     def proposal(request: Request):
@@ -69,7 +77,7 @@ def router(service):
 
     @route.post('/sources', dependencies=[Depends(owner)])
     async def add_source(body: Source):
-        return Catalog(service.store).add(body.kind, body.url)
+        return Catalog(service.store).add(**body.model_dump())
 
     @route.delete('/sources/{source_id}', dependencies=[Depends(owner)])
     async def remove_source(source_id: str):
@@ -92,7 +100,8 @@ def router(service):
 
     @route.post('/search', dependencies=[Depends(owner)])
     async def trigger_search():
-        Catalog(service.store).wake()
+        from .management import wake
+        wake(service)
         return {'state': 'scheduled'}
 
     @route.post('/sources/{source_id}/sync-status', dependencies=[Depends(source_bridge)])
@@ -148,5 +157,35 @@ def router(service):
         if not ctx or not ctx.raw.extra.get('fnos_preflight'):
             raise HTTPException(404, 'Qualified job not found')
         return summary(ctx)
+
+    @route.get('/candidates', dependencies=[Depends(proposal)])
+    async def candidates():
+        from .candidates import batch
+        return batch(service.store)
+
+    @route.post('/candidates/{identity}/select', dependencies=[Depends(owner)])
+    async def select_candidate(identity: str):
+        from .candidates import select
+        return await select(service, identity)
+
+    @route.post('/batches/{identity}/next', dependencies=[Depends(owner)])
+    async def next_candidates(identity: str):
+        from .candidates import next_batch
+        return next_batch(service.store, identity)
+
+    @route.post('/offline', dependencies=[Depends(proposal)])
+    async def offline_draft(body: OfflineInput):
+        from .offline import create
+        return create(service, body.uri, body.subscription_id)
+
+    @route.get('/offline', dependencies=[Depends(proposal)])
+    async def offline_jobs():
+        from .offline import jobs
+        return jobs(service.store)
+
+    @route.post('/offline/{identity}/confirm', dependencies=[Depends(owner)])
+    async def offline_confirm(identity: str):
+        from .offline import confirm
+        return confirm(service, identity)
 
     return route

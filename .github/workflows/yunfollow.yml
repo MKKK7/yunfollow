@@ -1,9 +1,9 @@
-name: FNOS minimal checks
+name: YunFollow checks
 on:
   push:
-    branches: [fnos-minimal]
+    branches: [main, fnos-minimal]
   pull_request:
-    branches: [fnos-minimal]
+    branches: [main, fnos-minimal]
 permissions:
   contents: read
 jobs:
@@ -18,5 +18,7 @@ jobs:
         with:
           node-version: '24'
       - run: pip install -e '.[web,dev]'
-      - run: python -m unittest tests.test_fnos tests.test_fnos_sources -v
+      - run: python -m unittest tests.test_fnos tests.test_fnos_sources tests.test_yunfollow tests.test_yunfollow_offline -v
       - run: node --test tests/fnos_adapters.test.mjs
+      - run: npm ci && npm run typecheck && npm run lint:eslint && npm run test && npm run build
+        working-directory: web

@@ -110,10 +110,12 @@ export function parseArticle(html, articleUrl) {
   const articleText = cleanText(article);
   const tmdbMatch = /TMDB\s*ID\s*[:：]?\s*(\d+)/i.exec(articleText);
   const shares = [];
+  const offlineLinks = [];
   const seen = new Set();
   for (const a of nodes(article, (n) => n.tag === 'a' && n.attrs.href)) {
     try {
       const u = new URL(a.attrs.href);
+      if (u.protocol === 'magnet:' || u.protocol === 'ed2k:') { if (a.attrs.href.length <= 4096) offlineLinks.push(a.attrs.href); continue; }
       if (u.protocol !== 'https:' || !SHARE_HOSTS.has(u.hostname) || u.username || u.password || (u.port && u.port !== '443')) continue;
       const code = /^\/s\/([A-Za-z0-9]+)\/?$/.exec(u.pathname)?.[1];
       if (!code || seen.has(code)) continue;
@@ -126,7 +128,7 @@ export function parseArticle(html, articleUrl) {
     } catch { /* Ignore non-URL and unrelated links. */ }
   }
   return { articleUrl, title: nodes(article, (n) => n.tag === 'h1')[0] ? cleanText(nodes(article, (n) => n.tag === 'h1')[0]) : null,
-    tmdbId: tmdbMatch?.[1] ?? null, evidence: articleText.slice(0, 6000), shares, articleHash: hash(JSON.stringify({ articleText, shares })) };
+    tmdbId: tmdbMatch?.[1] ?? null, evidence: articleText.slice(0, 6000), shares, offlineLinks: offlineLinks.slice(0, 20), articleHash: hash(JSON.stringify({ articleText, shares })) };
 }
 
 export async function fetchHtml(input, { fetchImpl = fetch, timeoutMs = 15000, maxBytes = MAX_HTML_BYTES } = {}) {

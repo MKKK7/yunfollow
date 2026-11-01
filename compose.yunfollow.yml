@@ -1,17 +1,16 @@
-version: '3.8'
 services:
-  reelay-fnos:
-    image: reelay-fnos:0.2.4
-    container_name: reelay-fnos
+  yunfollow:
+    image: yunfollow:0.3.0
+    container_name: yunfollow
     restart: always
     ports:
-      - '${FNOS_BIND_ADDRESS:-127.0.0.1}:28080:28080'
+      - '${YUNFOLLOW_BIND_ADDRESS:-127.0.0.1}:28080:28080'
     env_file:
-      - /vol1/1000/AppData/Reelay-FNOS/integration.env
+      - /vol1/1000/AppData/YunFollow/integration.env
     volumes:
-      - /vol1/1000/AppData/Reelay-FNOS/data:/app/data
+      - /vol1/1000/AppData/YunFollow/data:/app/data
       - /vol1/1000/StrmLink/litePan:/app/strm:ro
-      - /vol1/1000/AppData/Reelay-FNOS/kdocs:/home/reelay/.config/kdocs-cli
+      - /vol1/1000/AppData/YunFollow/kdocs:/home/reelay/.config/kdocs-cli
     environment:
       - TZ=Asia/Shanghai
       - FNOS_BOT_API=1

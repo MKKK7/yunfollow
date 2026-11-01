@@ -19,6 +19,7 @@ const PluginsPage = lazy(() => import('@/pages/ConfigPage/PluginsPage'));
 const StoragePage = lazy(() => import('@/pages/StoragePage/StoragePage'));
 const LogsPage = lazy(() => import('@/pages/LogsPage/LogsPage'));
 const SubscriptionsPage = lazy(() => import('@/pages/SubscriptionsPage/SubscriptionsPage'));
+const WorkflowPage = lazy(() => import('@/pages/WorkflowPage'));
 
 /** 根路由：还没有设置登录密码时先显示设置密码页（首次部署）；开启了密码且未登录时，任何地址都显示登录页；
  *  登录后回到原来的页面。服务端拒绝访问时整页说明原因。页面渲染出错时显示 ErrorFallback（换了地址自动重试）。 */
@@ -64,7 +65,7 @@ const router = createBrowserRouter([{
       path: '/',
       element: <Layout />,
       children: [
-        { index: true, element: <Navigate to="/dashboard" replace /> },
+        { index: true, element: <Navigate to="/workflow/tasks" replace /> },
         { path: 'dashboard', element: <DashboardPage /> },
         { path: 'inbox', element: <InboxPage /> },
         { path: 'tasks', element: <TasksPage /> },
@@ -75,6 +76,12 @@ const router = createBrowserRouter([{
         { path: 'stats', element: <StatsPage /> },
         { path: 'library', element: <LibraryPage /> },
         { path: 'subscriptions', element: <SubscriptionsPage /> },
+        { path: 'workflow/tasks', element: <WorkflowPage mode="tasks" /> },
+        { path: 'workflow/pending', element: <WorkflowPage mode="pending" /> },
+        { path: 'workflow/sources', element: <WorkflowPage mode="sources" /> },
+        { path: 'workflow/integrations', element: <WorkflowPage mode="integrations" /> },
+        { path: 'workflow/subscriptions', element: <WorkflowPage mode="subscriptions" /> },
+        { path: 'workflow/rules', element: <WorkflowPage mode="rules" /> },
       ],
     },
     { path: '*', element: <NotFoundPage /> },

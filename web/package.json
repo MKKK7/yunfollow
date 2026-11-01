@@ -1,6 +1,6 @@
 {
-  "name": "reelay-console",
-  "version": "1.4.1",
+  "name": "yunfollow-console",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9",
+    "@playwright/test": "1.56.1",
     "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^24",
     "@types/react": "^19",

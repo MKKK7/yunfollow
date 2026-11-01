@@ -29,3 +29,6 @@ kdocs-cli
 .idea/
 .vscode/
 .DS_Store
+web/test-results/
+web/playwright-report/
+yunfollow-release.tar.gz

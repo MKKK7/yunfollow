@@ -16,6 +16,7 @@ from ..core.registry import register
 from .catalog import Catalog
 from .http import api
 from .preflight import Preflight
+from . import candidates as choices
 
 log = logging.getLogger('reelay.fnos.search')
 
@@ -29,6 +30,7 @@ def matching(candidate, subscriptions):
     tmdb = str(candidate.get('tmdbid') or '')
     return [s for s in subscriptions if s.get('auto') and not s.get('finished') and (
         bool(tmdb and str(s.get('tmdbid')) == tmdb)
+        or s.get('tmdbid') in candidate.get('requested_for', [])
         or bool(s.get('title') and str(s['title']).casefold() in title))]
 
 
@@ -76,12 +78,14 @@ class FnosSources:
             for share in value.get('candidates', {}).get('shares115', []):
                 items[share['shareCode']] = {'title': share.get('contextSnippet', ''), 'share': share,
                                             'version': value.get('contentHash', ''), 'source': '@fnos_document'}
+            for entry in value.get('candidates', {}).get('offlineLinks', []):
+                items['offline:' + entry['uri']] = {'title': entry.get('contextSnippet', ''), 'offline': entry['uri'], 'share': {}}
         elif source['kind'] == 'pansou':
             for sub in subs[:10]:
                 for query in search_queries(sub):
                     update('正在自动盘搜：' + query, query=query)
                     result = await api(source['url'] + '/api/search',
-                        {'kw': query, 'res': 'merge', 'src': 'all', 'cloud_types': ['115']}, timeout=45)
+                        {'kw': query, 'res': 'merge', 'src': 'all', 'cloud_types': ['115', 'magnet', 'ed2k']}, timeout=45)
                     if result.get('code') not in (None, 0, 200):
                         raise RuntimeError('PanSou rejected search')
                     hits = (result.get('data') or {}).get('merged_by_type', {}).get('115', []) or []
@@ -92,10 +96,16 @@ class FnosSources:
                             continue
                         title = str(share.get('title') or share.get('note') or '')[:2000]
                         new = {'title': title, 'share': {'shareCode': code, 'password': share.get('password') or password},
-                               'source': '@fnos_pansou', 'version': hashlib.sha256(json.dumps(share, sort_keys=True).encode()).hexdigest()}
+                               'source': '@fnos_pansou', 'requested_for': list(set(items.get(code, {}).get('requested_for', []) + [sub.get('tmdbid')])),
+                               'version': hashlib.sha256(json.dumps(share, sort_keys=True).encode()).hexdigest()}
                         if code in items and items[code]['share'].get('password') != new['share'].get('password'):
                             new['conflict'] = True
                         items[code] = new
+                    for kind in ('magnet', 'ed2k'):
+                        for entry in ((result.get('data') or {}).get('merged_by_type', {}).get(kind) or [])[:10]:
+                            uri = entry.get('url', '')
+                            items['offline:' + uri] = {'title': str(entry.get('title') or entry.get('note') or '')[:1000],
+                                'offline': uri, 'share': {}, 'requested_for': [sub.get('tmdbid')]}
 
         else:
             channel = source['url'].rsplit('/', 1)[-1]
@@ -108,6 +118,9 @@ class FnosSources:
                 events = json.loads(Path(result['output']).read_text(encoding='utf-8'))
                 for event in events.get('observations', events.get('events', [])):
                     for article in event.get('articles', []):
+                        for uri in article.get('offlineLinks', []):
+                            items['offline:' + uri] = {'title': article.get('title') or event.get('title', ''),
+                                'tmdbid': article.get('tmdbId'), 'offline': uri, 'share': {}}
                         for share in article.get('shares', []):
                             items[share['shareCode']] = {'title': article.get('title') or event.get('title', ''),
                                 'evidence': str(article.get('evidence') or event.get('text') or '')[:6000],
@@ -142,7 +155,17 @@ class FnosSources:
         preflight = Preflight(pipeline)
         seen = set()
         sources = sorted((s for s in catalog.items() if s['enabled']), key=lambda s: {'pansou': 0, 'kdocs': 1, 'telegram': 2}[s['kind']])
+        force = bool(store.state_get('yun_source_actions', 'force_all', False))
+        sub_fingerprint = hashlib.sha256(json.dumps(subs, sort_keys=True).encode()).hexdigest()
+        force = force or store.state_get('yun_source_actions', 'subscriptions') != sub_fingerprint
+        store.state_set('yun_source_actions', 'subscriptions', sub_fingerprint)
+        store.state_set('yun_source_actions', 'force_all', False)
         for source in sources:
+            last = store.state_get('fnos_source_health', source['id'], {}).get('checked_at', 0)
+            forced = store.state_get('yun_source_actions', source['id'], False)
+            if not force and not forced and time.time() - last < source.get('interval_seconds', 600):
+                continue
+            store.state_set('yun_source_actions', source['id'], False)
             try:
                 candidates = await self.collect(source, subs, root, catalog, update)
                 progress['collected'] += len(candidates)
@@ -161,6 +184,20 @@ class FnosSources:
             source_checks = 0
             for index, candidate in ordered:
                 for sub in matching(candidate, subs):
+                    if candidate.get('offline'):
+                        if progress.get('offline_drafts', 0) >= 3:
+                            continue
+                        try:
+                            from types import SimpleNamespace
+                            from .offline import create
+                            result = create(SimpleNamespace(store=store), candidate['offline'], sub['id'])
+                            value = store.state_get('yun_offline', result['id'])
+                            value.update(source_name=source.get('name') or source['kind'], evidence=candidate['title'][:300])
+                            store.state_set('yun_offline', result['id'], value)
+                            progress['offline_drafts'] = progress.get('offline_drafts', 0) + 1
+                        except ValueError:
+                            progress['excluded'] += 1
+                        continue
                     share = candidate['share']
                     key = (share.get('shareCode') or share.get('url'), share.get('password'), sub['id'])
                     if key in seen:
@@ -192,9 +229,22 @@ class FnosSources:
                         update(f'候选未入队：{reason}')
                         continue
                     receipt = store.state_get('fnos_preflight', raw.extra['fnos_preflight'], {})
+                    identity = choices.record(store, raw, candidate, source, target, receipt)
+                    choice = store.state_get('yun_candidates', identity)
+                    choice['quality'] = reason
+                    store.state_set('yun_candidates', identity, choice)
+                    follow_key = f"{sub['tmdbid']}:{sub['season']}"
+                    follow = store.state_get('yun_follow', follow_key, {})
+                    if not follow.get('auto_missing') or reason != 'ready' or choice['state'] != 'available':
+                        continue
+                    if not choices.public(store, choice)['new_episodes']:
+                        continue
+                    raw.extra['yun_auto_missing'] = True
                     raw.msg_id = hashlib.sha256((raw.msg_id + receipt.get('file_hash', '')).encode()).hexdigest()[:24]
                     accepted = await emit(raw)
                     if accepted:
+                        choice.update(state='selected', task_id=accepted.task_id)
+                        store.state_set('yun_candidates', identity, choice)
                         progress['emitted'] += 1
                         update(f'合格剧集候选已入队，任务{accepted.task_id}')
         self._status = 'degraded' if progress['errors'] else 'connected'
@@ -204,6 +254,16 @@ class FnosSources:
         if not progress['emitted']:
             message += '本轮没有新增合格任务；未发起转存。'
         update(message, state='waiting', finished_at=time.time())
+        choices.queue_batch_notice(store)
+        if not choices.available(store):
+            from .offline import notify_drafts
+            notify_drafts(store)
+        try:
+            from types import SimpleNamespace
+            from .management import refresh_airing
+            await refresh_airing(SimpleNamespace(store=store, pipeline=pipeline))
+        except Exception:
+            log.warning('播出信息暂时无法刷新，缺集状态保留为未知')
         fingerprint = hashlib.sha256(json.dumps(subs, sort_keys=True).encode()).hexdigest()[:16]
         if store.state_get(self.name, 'reported_subscriptions') != fingerprint:
             store.stage_notice('fnos-preflight-' + fingerprint, message + '\n发送 /status 查看真实任务状态，/audit 查看排除原因。', ['fnos_bot'])

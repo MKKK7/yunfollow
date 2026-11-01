@@ -6,13 +6,13 @@ from ..core import paths
 from .catalog import Catalog
 
 
-async def refresh_documents(store, read=None):
+async def refresh_documents(store, read=None, source_id=None):
     from .sources import command_json
     reader = read or command_json
     catalog = Catalog(store)
     results = []
     for source in catalog.items():
-        if source['kind'] != 'kdocs' or not source['enabled']:
+        if source['kind'] != 'kdocs' or not source['enabled'] or (source_id and source['id'] != source_id):
             continue
         try:
             value = await reader(['node', '/app/fnos-adapters/kdocs-container.mjs',

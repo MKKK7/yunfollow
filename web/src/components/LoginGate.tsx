@@ -31,7 +31,7 @@ function GateShell({ subtitle, children }: { subtitle: string; children: ReactNo
           <div className="grid size-12 place-items-center rounded-[14px] bg-gradient-to-br from-[hsl(171_58%_44%)] to-[hsl(178_64%_26%)] text-white shadow-[0_8px_20px_-6px_hsl(173_60%_30%/0.6)]">
             <Clapperboard className="size-6" />
           </div>
-          <h1 className="mt-4 text-[22px] font-semibold tracking-tight">Reelay</h1>
+          <h1 className="mt-4 text-[22px] font-semibold tracking-tight">云追 YunFollow</h1>
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         </div>
         {children}
